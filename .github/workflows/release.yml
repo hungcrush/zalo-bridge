@@ -1,0 +1,79 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, name: linux-x64, target: bun-linux-x64, smoke: true }
+          - { os: ubuntu-latest, name: linux-x64-baseline, target: bun-linux-x64-baseline, smoke: true }
+          - { os: ubuntu-latest, name: linux-x64-musl, target: bun-linux-x64-musl }
+          - { os: ubuntu-latest, name: linux-arm64, target: bun-linux-arm64 }
+          - { os: macos-latest, name: darwin-arm64, target: bun-darwin-arm64, smoke: true }
+          - { os: macos-latest, name: darwin-x64, target: bun-darwin-x64 }
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - run: bun install
+
+      - name: Build binary
+        run: |
+          mkdir -p dist
+          bun build --compile --minify --target=${{ matrix.target }} src/index.js \
+            --outfile dist/zalo-bridge-${{ matrix.name }}
+
+      # Chạy thử: không có biến môi trường thì bridge phải báo thiếu cấu hình và thoát
+      - name: Smoke test
+        if: matrix.smoke
+        run: |
+          set +e
+          out=$(./dist/zalo-bridge-${{ matrix.name }} 2>&1)
+          code=$?
+          echo "$out"
+          [ "$code" -eq 1 ] && echo "$out" | grep -q "PB_SUPERUSER_EMAIL"
+
+      - name: Package
+        run: |
+          cd dist
+          tar -czf zalo-bridge-${{ github.ref_name }}-${{ matrix.name }}.tar.gz zalo-bridge-${{ matrix.name }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: zalo-bridge-${{ matrix.name }}
+          path: dist/*.tar.gz
+          if-no-files-found: error
+
+  release:
+    name: Publish release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Checksums
+        run: cd dist && sha256sum *.tar.gz > SHA256SUMS.txt && cat SHA256SUMS.txt
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.tar.gz
+            dist/SHA256SUMS.txt
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-') }}

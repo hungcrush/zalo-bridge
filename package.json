@@ -11,7 +11,9 @@
     "build:linux-x64-baseline": "bun build --compile --minify --target=bun-linux-x64-baseline src/index.js --outfile dist/zalo-bridge-linux-x64-baseline",
     "build:linux-arm64": "bun build --compile --minify --target=bun-linux-arm64 src/index.js --outfile dist/zalo-bridge-linux-arm64",
     "build:linux-x64-musl": "bun build --compile --minify --target=bun-linux-x64-musl src/index.js --outfile dist/zalo-bridge-linux-x64-musl",
-    "build:windows-x64": "bun build --compile --minify --target=bun-windows-x64 src/index.js --outfile dist/zalo-bridge-windows-x64.exe"
+    "build:windows-x64": "bun build --compile --minify --target=bun-windows-x64 src/index.js --outfile dist/zalo-bridge-windows-x64.exe",
+    "build:darwin-arm64": "bun build --compile --minify --target=bun-darwin-arm64 src/index.js --outfile dist/zalo-bridge-darwin-arm64",
+    "build:darwin-x64": "bun build --compile --minify --target=bun-darwin-x64 src/index.js --outfile dist/zalo-bridge-darwin-x64"
   },
   "dependencies": {
     "image-size": "2.0.4",

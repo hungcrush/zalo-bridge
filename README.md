@@ -64,7 +64,21 @@ await pb.collection("zalo_outbox").create({
 
 ```bash
 bun run build                   # current platform -> dist/zalo-bridge
-bun run build:linux-x64         # also: linux-x64-baseline, linux-arm64, linux-x64-musl, windows-x64
+bun run build:linux-x64         # also: linux-x64-baseline, linux-arm64, linux-x64-musl,
+                                #       darwin-arm64, darwin-x64, windows-x64
 ```
 
 Run the binary with the same environment variables (e.g. from a `.env` file in the working directory, or a systemd `EnvironmentFile`).
+
+## Releases
+
+Pushing a tag that starts with `v` runs [`.github/workflows/release.yml`](.github/workflows/release.yml). It builds standalone binaries for Linux (`x64`, `x64-baseline`, `x64-musl`, `arm64`) and macOS (`arm64`, `x64`), then publishes a GitHub Release with the `.tar.gz` files and `SHA256SUMS.txt`.
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+Tags with a `-` (e.g. `v1.1.0-beta.1`) are published as pre-releases. Use `x64-baseline` on older CPUs without AVX2, and `x64-musl` on Alpine.
+
+The macOS binaries are not notarized. If macOS blocks a downloaded binary, run `xattr -d com.apple.quarantine ./zalo-bridge-darwin-arm64`.
