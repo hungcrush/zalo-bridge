@@ -1,0 +1,21 @@
+{
+  "name": "zalo-bridge",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Cầu nối Zalo cá nhân (zca-js) với PocketBase",
+  "scripts": {
+    "dev": "bun run src/index.js",
+    "build": "bun build --compile --minify src/index.js --outfile dist/zalo-bridge",
+    "build:linux-x64": "bun build --compile --minify --target=bun-linux-x64 src/index.js --outfile dist/zalo-bridge-linux-x64",
+    "build:linux-x64-baseline": "bun build --compile --minify --target=bun-linux-x64-baseline src/index.js --outfile dist/zalo-bridge-linux-x64-baseline",
+    "build:linux-arm64": "bun build --compile --minify --target=bun-linux-arm64 src/index.js --outfile dist/zalo-bridge-linux-arm64",
+    "build:linux-x64-musl": "bun build --compile --minify --target=bun-linux-x64-musl src/index.js --outfile dist/zalo-bridge-linux-x64-musl",
+    "build:windows-x64": "bun build --compile --minify --target=bun-windows-x64 src/index.js --outfile dist/zalo-bridge-windows-x64.exe"
+  },
+  "dependencies": {
+    "image-size": "2.0.4",
+    "pocketbase": "0.28.1",
+    "zca-js": "2.2.0"
+  }
+}
