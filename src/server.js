@@ -1,6 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import { config, log } from "./config.js";
-import { getState, startQRLogin, logout } from "./zalo.js";
+import { getState, startQRLogin, logout, createGroup, addReaction, REACTION_NAMES } from "./zalo.js";
 import { kickOutbox } from "./outbox.js";
 
 const json = (data, status = 200) =>
@@ -10,6 +10,56 @@ function authorized(req) {
   const given = Buffer.from(req.headers.get("x-bridge-secret") ?? "");
   const expected = Buffer.from(config.secret);
   return given.length === expected.length && timingSafeEqual(given, expected);
+}
+
+const isStrList = (v) => v === undefined || (Array.isArray(v) && v.every((x) => typeof x === "string" && x));
+
+async function handleCreateGroup(req) {
+  let body;
+  try {
+    body = await req.json();
+  } catch {
+    return json({ error: "invalid json" }, 400);
+  }
+  const { name, members, phones } = body ?? {};
+  if ((name !== undefined && typeof name !== "string") || !isStrList(members) || !isStrList(phones)) {
+    return json({ error: "name phải là chuỗi; members, phones phải là mảng chuỗi" }, 400);
+  }
+  if (!members?.length && !phones?.length) {
+    return json({ error: "Cần ít nhất một thành viên (members hoặc phones)" }, 400);
+  }
+  if (!getState().connected) return json({ error: "Zalo chưa kết nối" }, 503);
+
+  try {
+    return json({ ok: true, ...(await createGroup({ name, members, phones })) }, 201);
+  } catch (e) {
+    log("[http] Tạo nhóm thất bại:", e?.message);
+    return json({ error: String(e?.message ?? e) }, 502);
+  }
+}
+
+async function handleAddReaction(req) {
+  let body;
+  try {
+    body = await req.json();
+  } catch {
+    return json({ error: "invalid json" }, 400);
+  }
+  const { message_id, msg_id, reaction } = body ?? {};
+  if (!(typeof message_id === "string" && message_id) && !(typeof msg_id === "string" && msg_id)) {
+    return json({ error: "Cần message_id (id bản ghi zalo_messages) hoặc msg_id" }, 400);
+  }
+  if (typeof reaction !== "string" || !REACTION_NAMES.includes(reaction.toUpperCase())) {
+    return json({ error: "reaction không hợp lệ", allowed: REACTION_NAMES }, 400);
+  }
+
+  try {
+    return json({ ok: true, ...(await addReaction({ id: message_id, msgId: msg_id, reaction })) });
+  } catch (e) {
+    if (e?.httpStatus) return json({ error: e.message }, e.httpStatus);
+    log("[http] Thả reaction thất bại:", e?.message);
+    return json({ error: String(e?.message ?? e) }, 502);
+  }
 }
 
 export function startServer() {
@@ -34,6 +84,10 @@ export function startServer() {
           case "/logout":
             await logout();
             return json({ ok: true });
+          case "/groups":
+            return handleCreateGroup(req);
+          case "/reactions":
+            return handleAddReaction(req);
         }
       }
       return json({ error: "not found" }, 404);

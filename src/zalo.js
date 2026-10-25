@@ -5,6 +5,7 @@ import {
   LoginQRCallbackEventType as QR,
   CloseReason,
   ZaloApiLoginQRAborted,
+  Reactions,
 } from "zca-js";
 import { imageSize } from "image-size";
 import { readFile } from "node:fs/promises";
@@ -165,6 +166,70 @@ export async function logout() {
     { status: "logged_out", message: "Đã đăng xuất khỏi bridge", accountId: "", accountName: "" },
     { credentials: null, qr_image: "" },
   );
+}
+
+/** Tạo nhóm mới. members: danh sách user id, phones: số điện thoại (tự tra user id). */
+export async function createGroup({ name, members = [], phones = [] }) {
+  const a = getApi();
+  if (!a) throw new Error("Zalo chưa kết nối");
+
+  const ids = members.map(String);
+  const notFound = [];
+  for (const phone of phones) {
+    const digits = String(phone).replace(/[^\d]/g, "");
+    const user = digits ? await a.findUser(digits) : null;
+    if (user?.uid) ids.push(String(user.uid));
+    else notFound.push(phone);
+  }
+  if (!ids.length) throw new Error("Không có thành viên hợp lệ để tạo nhóm");
+
+  const res = await a.createGroup({ name, members: [...new Set(ids)] });
+  log(`[zalo] Đã tạo nhóm ${res.groupId} (${name || "không tên"})`);
+  return {
+    groupId: String(res.groupId),
+    successMembers: res.sucessMembers ?? [],
+    errorMembers: res.errorMembers ?? [],
+    phonesNotFound: notFound,
+  };
+}
+
+// Lỗi có httpStatus sẽ được server trả nguyên mã cho client
+const httpError = (httpStatus, message) => Object.assign(new Error(message), { httpStatus });
+
+/** Tên reaction hợp lệ (HEART, LIKE, HAHA, ...). NONE = bỏ reaction. */
+export const REACTION_NAMES = Object.keys(Reactions);
+
+/**
+ * Thả reaction vào một tin đã lưu trong zalo_messages.
+ * id: id bản ghi PocketBase, hoặc msgId: msg_id của Zalo.
+ */
+export async function addReaction({ id, msgId, reaction }) {
+  const a = getApi();
+  if (!a) throw httpError(503, "Zalo chưa kết nối");
+
+  const icon = Reactions[String(reaction).toUpperCase()];
+  if (icon === undefined) throw httpError(400, "reaction không hợp lệ");
+
+  let rec;
+  try {
+    rec = await call((pb) =>
+      id
+        ? pb.collection("zalo_messages").getOne(id)
+        : pb.collection("zalo_messages").getFirstListItem(pb.filter("msg_id = {:id}", { id: msgId })),
+    );
+  } catch (e) {
+    if (e?.status === 404) throw httpError(404, "Không tìm thấy tin nhắn trong zalo_messages");
+    throw e;
+  }
+  if (!rec.cli_msg_id) throw httpError(422, "Tin nhắn thiếu cli_msg_id, không thể thả reaction");
+
+  const res = await a.addReaction(icon, {
+    data: { msgId: rec.msg_id, cliMsgId: rec.cli_msg_id },
+    threadId: rec.thread_id,
+    type: rec.thread_type === "group" ? ThreadType.Group : ThreadType.User,
+  });
+  log(`[zalo] Reaction ${reaction} -> ${rec.msg_id}`);
+  return { messageId: rec.id, msgId: rec.msg_id, reaction: String(reaction).toUpperCase(), msgIds: res?.msgIds ?? [] };
 }
 
 export function stop() {
