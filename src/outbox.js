@@ -1,6 +1,7 @@
 import { ThreadType } from "zca-js";
 import { imageSize } from "image-size";
 import { config, log, logErr, sleep } from "./config.js";
+import { looksLikeMarkdown, markdownToZalo } from "./markdown.js";
 import { call } from "./pb.js";
 import { getApi } from "./zalo.js";
 
@@ -61,7 +62,9 @@ async function sendOne(item) {
     }
     if (!threadId) throw new Error("Thiếu thread_id hoặc phone");
 
-    const message = { msg: item.text || "" };
+    const text = item.text || "";
+    const message =
+      config.markdown && looksLikeMarkdown(text) ? markdownToZalo(text) : { msg: text };
 
     if (item.reply_to) {
       const q = await call((pb) => pb.collection("zalo_messages").getOne(item.reply_to));

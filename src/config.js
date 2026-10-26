@@ -17,6 +17,7 @@ export const config = {
   autoQR: bool("ZALO_AUTO_QR_LOGIN", "true"),
   sendDelayMs: Number(env("ZALO_SEND_DELAY_MS", "1500")),
   pollMs: Number(env("OUTBOX_POLL_MS", "30000")),
+  markdown: bool("ZALO_MARKDOWN", "true"),
   logging: bool("ZALO_LOGGING", "false"),
   userAgent: env(
     "ZALO_USER_AGENT",

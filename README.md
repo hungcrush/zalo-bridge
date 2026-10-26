@@ -37,6 +37,7 @@ On first start (with `ZALO_AUTO_QR_LOGIN=true`) the bridge generates a QR code a
 | `ZALO_AUTO_QR_LOGIN` | `true` | Start QR login automatically when not logged in |
 | `ZALO_SEND_DELAY_MS` | `1500` | Pause between outgoing messages |
 | `OUTBOX_POLL_MS` | `30000` | Fallback interval for checking the outbox |
+| `ZALO_MARKDOWN` | `true` | Convert Markdown in outgoing `text` to Zalo formatting (see [Sending messages](docs/sending-messages.md#markdown-formatting)) |
 | `ZALO_LOGGING` | `false` | Verbose zca-js logs |
 | `ZALO_USER_AGENT` | Firefox UA | User agent used for login |
 

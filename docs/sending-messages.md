@@ -40,6 +40,37 @@ await pb.collection("zalo_outbox").create({
 });
 ```
 
+## Markdown formatting
+
+If `text` looks like Markdown, the bridge converts it to Zalo's own formatting before sending. Plain text is sent unchanged. Set `ZALO_MARKDOWN=false` to turn this off.
+
+| Markdown | In Zalo |
+| --- | --- |
+| `**bold**`, `__bold__` | **bold** |
+| `*italic*`, `_italic_` | _italic_ |
+| `***both***` | bold + italic |
+| `~~strike~~` | strikethrough |
+| `# Heading`, `## Heading` | bold, large text |
+| `### Heading` and deeper | bold |
+| `- item`, `* item`, `+ item` | `• item` (indentation kept) |
+| `1. item` | `1. item` |
+| `- [ ] task`, `- [x] task` | `☐ task`, `☑ task` |
+| `> quote` | `▎ quote` in italic |
+| `[label](url)` | `label (url)` |
+| `` `code` ``, code blocks | text kept as-is, without the backticks or fences |
+| `---` | a divider line |
+| `\*` (escapes) | the literal character |
+
+Underscores inside words (`snake_case`) are not treated as italics, and runs of blank lines are collapsed to one.
+
+```js
+await pb.collection("zalo_outbox").create({
+  status: "pending",
+  thread_id: "1234567890123456789",
+  text: "## Đơn hàng #1024\n- Trạng thái: **đã giao**\n- Ghi chú: _giao giờ hành chính_",
+});
+```
+
 ## Files and images
 
 `attachments` is a multi-file field. `text`, if given, is sent with the files.
