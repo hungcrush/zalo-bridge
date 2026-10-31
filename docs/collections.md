@@ -63,6 +63,7 @@ Messages to send. Your app creates records; the bridge sends them and updates th
 | `text` | text | `text` and/or `attachments` | Message body |
 | `attachments` | file (multiple, **protected**) | | Files to send. Images (`png`, `jpg`, `jpeg`, `gif`, `webp`, `bmp`) are sent with their dimensions |
 | `reply_to` | relation → `zalo_messages` (single) | | Message to quote. Its `raw` field must be present |
+| `mentions` | json | | Array of `{ uid, pos, len }` tagging users in `text`. Groups only. See [mentions](sending-messages.md#mentioning-people-in-a-group) |
 
 ### Fields the bridge sets
 

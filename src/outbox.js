@@ -63,8 +63,9 @@ async function sendOne(item) {
     if (!threadId) throw new Error("Thiếu thread_id hoặc phone");
 
     const text = item.text || "";
+    // Có mentions thì gửi nguyên văn: chuyển markdown làm lệch pos/len của mentions
     const message =
-      config.markdown && looksLikeMarkdown(text) ? markdownToZalo(text) : { msg: text };
+      config.markdown && !item.mentions && looksLikeMarkdown(text) ? markdownToZalo(text) : { msg: text };
 
     if (item.reply_to) {
       const q = await call((pb) => pb.collection("zalo_messages").getOne(item.reply_to));
@@ -80,6 +81,8 @@ async function sendOne(item) {
         ttl: r.ttl ?? 0,
       };
     }
+
+    if (item.mentions) message.mentions = parseMentions(item.mentions, message.msg);
 
     const files = Array.isArray(item.attachments) ? item.attachments : item.attachments ? [item.attachments] : [];
     if (files.length) {
@@ -102,6 +105,20 @@ async function sendOne(item) {
     logErr(`[outbox] Gửi ${item.id} thất bại:`, e?.message);
     await update(item.id, { status: "failed", error: String(e?.message ?? e).slice(0, 1000) }).catch(() => {});
   }
+}
+
+/** mentions: [{ uid, pos, len }] — pos/len tính theo ký tự trong text, uid "-1" = @Tất cả. Chỉ có tác dụng trong nhóm. */
+function parseMentions(list, text) {
+  if (!Array.isArray(list)) throw new Error("mentions phải là mảng");
+  return list.map((m) => {
+    const uid = String(m?.uid ?? "");
+    const pos = Number(m?.pos);
+    const len = Number(m?.len);
+    if (!uid || !Number.isInteger(pos) || !Number.isInteger(len) || pos < 0 || len <= 0 || pos + len > text.length) {
+      throw new Error("mention không hợp lệ: " + JSON.stringify(m));
+    }
+    return { uid, pos, len };
+  });
 }
 
 async function downloadAttachment(record, filename) {

@@ -42,7 +42,7 @@ await pb.collection("zalo_outbox").create({
 
 ## Markdown formatting
 
-If `text` looks like Markdown, the bridge converts it to Zalo's own formatting before sending. Plain text is sent unchanged. Set `ZALO_MARKDOWN=false` to turn this off.
+If `text` looks like Markdown, the bridge converts it to Zalo's own formatting before sending. Plain text is sent unchanged. Records with [`mentions`](#mentioning-people-in-a-group) are never converted. Set `ZALO_MARKDOWN=false` to turn this off.
 
 | Markdown | In Zalo |
 | --- | --- |
@@ -70,6 +70,29 @@ await pb.collection("zalo_outbox").create({
   text: "## Đơn hàng #1024\n- Trạng thái: **đã giao**\n- Ghi chú: _giao giờ hành chính_",
 });
 ```
+
+## Mentioning people in a group
+
+Set `mentions` to an array of `{ uid, pos, len }`. Each entry tags the user `uid` on the part of `text` that starts at `pos` and is `len` characters long, so that part should be the `@name` itself. Use `uid: "-1"` to mention everyone (`@All`).
+
+```js
+const text = "@Nguyễn Văn A @All họp lúc 9h nhé";
+await pb.collection("zalo_outbox").create({
+  status: "pending",
+  thread_id: "9876543210987654321",
+  thread_type: "group",
+  text,
+  mentions: [
+    { uid: "1234567890123456789", pos: 0, len: "@Nguyễn Văn A".length },
+    { uid: "-1", pos: text.indexOf("@All"), len: "@All".length },
+  ],
+});
+```
+
+- `pos` and `len` count JavaScript string characters (UTF-16 code units), so `String.prototype.indexOf` and `.length` give the right values. Emoji before a mention count as 2.
+- When `mentions` is set, Markdown conversion is skipped and `text` is sent exactly as written, so the positions stay correct.
+- Mentions only work in groups. Zalo ignores them in 1:1 chats, and the text is sent as plain text.
+- An entry with a missing `uid`, a negative `pos`, `len` ≤ 0, or a range that goes past the end of `text` makes the record `failed`.
 
 ## Files and images
 
@@ -118,6 +141,7 @@ Common `error` values:
 | `Thiếu thread_id hoặc phone` | Neither recipient field was set |
 | `Không tìm thấy tài khoản Zalo của số điện thoại này` | Phone lookup found no Zalo account |
 | `Tin nhắn trống` | No `text` and no `attachments` |
+| `mentions phải là mảng` / `mention không hợp lệ: ...` | `mentions` is not an array, or an entry is invalid |
 | `Không tải được file ... (status)` | The bridge could not download an attachment from PocketBase |
 | `Bridge bị dừng khi đang gửi; ...` | The bridge stopped mid-send; the message may or may not have been delivered |
 | anything else | Error from Zalo/zca-js |
