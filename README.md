@@ -45,7 +45,7 @@ On first start (with `ZALO_AUTO_QR_LOGIN=true`) the bridge generates a QR code a
 
 The bridge has a small internal HTTP API (for PocketBase to call) and works through three PocketBase collections. Full reference in [`docs/`](docs/README.md):
 
-- [HTTP API](docs/http-api.md): `GET /status`, `POST /kick`, `POST /login`, `POST /logout`, `POST /groups` (create a group), `POST /reactions` (react to a message). Every request needs the `x-bridge-secret` header.
+- [HTTP API](docs/http-api.md): `GET /status`, `POST /kick`, `POST /login`, `POST /logout`, `POST /groups` (create a group), `POST /reactions` (react to a message), `POST /typing` (show "typing...").  Every request needs the `x-bridge-secret` header.
 - [Collections](docs/collections.md): `zalo_session`, `zalo_messages`, `zalo_outbox`, with their fields and required indexes.
 - [Sending messages](docs/sending-messages.md): text, phone lookup, groups, files and replies.
 - [Session and login](docs/session.md): statuses, QR login, reconnects.

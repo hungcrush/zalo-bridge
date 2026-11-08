@@ -232,6 +232,28 @@ export async function addReaction({ id, msgId, reaction }) {
   return { messageId: rec.id, msgId: rec.msg_id, reaction: String(reaction).toUpperCase(), msgIds: res?.msgIds ?? [] };
 }
 
+/**
+ * Hiện "đang soạn tin..." trong một cuộc trò chuyện (Zalo tự tắt sau vài giây).
+ * threadId + threadType ("user" | "group"), hoặc phone (tự tra user id, luôn là chat 1:1).
+ */
+export async function sendTyping({ threadId, threadType, phone }) {
+  const a = getApi();
+  if (!a) throw httpError(503, "Zalo chưa kết nối");
+
+  let id = threadId;
+  let type = threadType === "group" ? ThreadType.Group : ThreadType.User;
+  if (!id && phone) {
+    const user = await a.findUser(String(phone).replace(/[^\d]/g, ""));
+    id = user?.uid;
+    type = ThreadType.User;
+    if (!id) throw httpError(404, "Không tìm thấy tài khoản Zalo của số điện thoại này");
+  }
+  if (!id) throw httpError(400, "Thiếu thread_id hoặc phone");
+
+  await a.sendTypingEvent(String(id), type);
+  return { threadId: String(id), threadType: type === ThreadType.Group ? "group" : "user" };
+}
+
 export function stop() {
   generation++;
   clearTimeout(reconnectTimer);

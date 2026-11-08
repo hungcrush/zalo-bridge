@@ -2,7 +2,7 @@
 
 | Document | Covers |
 | --- | --- |
-| [http-api.md](http-api.md) | The bridge's internal HTTP API (`/status`, `/kick`, `/login`, `/logout`, `/groups`, `/reactions`) |
+| [http-api.md](http-api.md) | The bridge's internal HTTP API (`/status`, `/kick`, `/login`, `/logout`, `/groups`, `/reactions`, `/typing`) |
 | [collections.md](collections.md) | PocketBase collections the bridge reads and writes, with required fields and indexes |
 | [sending-messages.md](sending-messages.md) | How to send text, files, replies and group messages through `zalo_outbox` |
 | [session.md](session.md) | Login flow, session statuses and reconnect behavior |

@@ -1,6 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import { config, log } from "./config.js";
-import { getState, startQRLogin, logout, createGroup, addReaction, REACTION_NAMES } from "./zalo.js";
+import { getState, startQRLogin, logout, createGroup, addReaction, sendTyping, REACTION_NAMES } from "./zalo.js";
 import { kickOutbox } from "./outbox.js";
 
 const json = (data, status = 200) =>
@@ -62,6 +62,30 @@ async function handleAddReaction(req) {
   }
 }
 
+async function handleTyping(req) {
+  let body;
+  try {
+    body = await req.json();
+  } catch {
+    return json({ error: "invalid json" }, 400);
+  }
+  const { thread_id, thread_type, phone } = body ?? {};
+  if (!(typeof thread_id === "string" && thread_id) && !(typeof phone === "string" && phone)) {
+    return json({ error: "Cần thread_id hoặc phone" }, 400);
+  }
+  if (thread_type !== undefined && thread_type !== "user" && thread_type !== "group") {
+    return json({ error: 'thread_type phải là "user" hoặc "group"' }, 400);
+  }
+
+  try {
+    return json({ ok: true, ...(await sendTyping({ threadId: thread_id, threadType: thread_type, phone })) });
+  } catch (e) {
+    if (e?.httpStatus) return json({ error: e.message }, e.httpStatus);
+    log("[http] Gửi trạng thái đang soạn tin thất bại:", e?.message);
+    return json({ error: String(e?.message ?? e) }, 502);
+  }
+}
+
 export function startServer() {
   const server = Bun.serve({
     hostname: config.host,
@@ -88,6 +112,8 @@ export function startServer() {
             return handleCreateGroup(req);
           case "/reactions":
             return handleAddReaction(req);
+          case "/typing":
+            return handleTyping(req);
         }
       }
       return json({ error: "not found" }, 404);

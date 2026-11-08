@@ -48,11 +48,12 @@ PocketBase runs each hook handler in its own isolated context, so handlers can't
 
 ```js
 module.exports = {
-  call(method, path) {
+  call(method, path, body) {
     const res = $http.send({
       url: ($os.getenv("ZALO_BRIDGE_URL") || "http://127.0.0.1:3939") + path,
       method: method,
-      headers: { "x-bridge-secret": $os.getenv("ZALO_BRIDGE_SECRET") },
+      headers: { "x-bridge-secret": $os.getenv("ZALO_BRIDGE_SECRET"), "content-type": "application/json" },
+      body: body ? JSON.stringify(body) : "",
       timeout: 10,
     });
     return { status: res.statusCode, body: res.json };
@@ -82,3 +83,25 @@ routerAdd("POST", "/api/zalo/logout", (e) => {
 Swap `$apis.requireSuperuserAuth()` for `$apis.requireAuth("users")` (plus your own checks) if regular users should manage the connection.
 
 The UI can then call `POST /api/zalo/login` and subscribe to the `zalo_session` record to show the QR code and status live.
+
+## Typing indicator
+
+Forward a typing request from your app to the bridge's [`POST /typing`](http-api.md#post-typing). Add to `pb_hooks/zalo_routes.pb.js`:
+
+```js
+routerAdd("POST", "/api/zalo/typing", (e) => {
+  const body = e.requestInfo().body;
+  const r = require(`${__hooks}/zalo_bridge.js`).call("POST", "/typing", {
+    thread_id: body.thread_id,
+    thread_type: body.thread_type,
+    phone: body.phone,
+  });
+  return e.json(r.status, r.body);
+}, $apis.requireSuperuserAuth());
+```
+
+Or call the bridge directly from server-side hook code, for example right before creating a `zalo_outbox` record:
+
+```js
+require(`${__hooks}/zalo_bridge.js`).call("POST", "/typing", { thread_id: threadId, thread_type: "user" });
+```

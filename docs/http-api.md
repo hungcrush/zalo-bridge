@@ -187,6 +187,46 @@ curl -s -X POST http://127.0.0.1:3939/groups \
 
 ---
 
+## `POST /typing`
+
+Shows the "typing..." indicator in a conversation, as if the bridge's account were writing a message. Zalo hides it again after a few seconds or when a message is sent, so call it again to keep it showing during a long wait (for example, every 5 seconds while an AI reply is being generated).
+
+**Request body** (`application/json`)
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `thread_id` | string | one of `thread_id` / `phone` | User id or group id, same as `zalo_outbox.thread_id` |
+| `thread_type` | `"user"` \| `"group"` | | Defaults to `"user"` |
+| `phone` | string | one of `thread_id` / `phone` | Phone number; looked up on Zalo, always a 1:1 chat. Ignored if `thread_id` is given |
+
+```json
+{ "thread_id": "9876543210987654321", "thread_type": "group" }
+```
+
+**Response `200`**
+
+```json
+{ "ok": true, "threadId": "9876543210987654321", "threadType": "group" }
+```
+
+**Errors**
+
+| Status | When |
+| --- | --- |
+| `400` | Invalid JSON, neither `thread_id` nor `phone` given, or invalid `thread_type` |
+| `404` | `phone` has no Zalo account |
+| `502` | Zalo rejected the request; `error` holds the reason |
+| `503` | Zalo is not connected |
+
+```bash
+curl -s -X POST http://127.0.0.1:3939/typing \
+  -H "x-bridge-secret: $BRIDGE_SECRET" \
+  -H "content-type: application/json" \
+  -d '{"thread_id":"1234567890123456789"}'
+```
+
+---
+
 ## `POST /reactions`
 
 Adds a reaction (emoji) to a message, or removes the account's reaction. The message must already be in `zalo_messages`: the bridge reads its `msg_id`, `cli_msg_id`, `thread_id` and `thread_type` from there.
