@@ -42,7 +42,7 @@ await pb.collection("zalo_outbox").create({
 
 ## Markdown formatting
 
-If `text` looks like Markdown, the bridge converts it to Zalo's own formatting before sending. Plain text is sent unchanged. Records with [`mentions`](#mentioning-people-in-a-group) are never converted. Set `ZALO_MARKDOWN=false` to turn this off.
+If `text` looks like Markdown, the bridge converts it to Zalo's own formatting before sending. Plain text is sent unchanged. Records with [`mentions`](#mentioning-people-in-a-group) are converted too; mention positions are adjusted automatically. Set `ZALO_MARKDOWN=false` to turn this off.
 
 | Markdown | In Zalo |
 | --- | --- |
@@ -90,7 +90,7 @@ await pb.collection("zalo_outbox").create({
 ```
 
 - `pos` and `len` count JavaScript string characters (UTF-16 code units), so `String.prototype.indexOf` and `.length` give the right values. Emoji before a mention count as 2.
-- When `mentions` is set, Markdown conversion is skipped and `text` is sent exactly as written, so the positions stay correct.
+- `pos` and `len` refer to `text` as you wrote it, Markdown included. If `text` is converted from Markdown, the bridge moves each mention to its new position, and the `@name` text itself is sent exactly as written, even if it contains `*` or `_`. Mentions must not overlap.
 - Mentions only work in groups. Zalo ignores them in 1:1 chats, and the text is sent as plain text.
 - An entry with a missing `uid`, a negative `pos`, `len` ≤ 0, or a range that goes past the end of `text` makes the record `failed`.
 

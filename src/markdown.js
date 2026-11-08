@@ -154,3 +154,66 @@ export function markdownToZalo(md) {
 
   return { msg: msg.trimEnd(), styles };
 }
+
+const SENTINEL_BASE = 0xe000; // vùng Private Use: không bị markdown đụng tới
+const SENTINEL_MAX = 0xf8ff;
+
+/**
+ * Chuyển markdown như `markdownToZalo` nhưng giữ đúng vị trí mentions.
+ * Mỗi mention được thay bằng 1 ký tự giữ chỗ trước khi chuyển, sau đó khôi phục lại
+ * và tính pos/len mới; styles bao quanh mention được giãn ra tương ứng.
+ * `mentions` đã được kiểm tra hợp lệ ([{ uid, pos, len }] theo text gốc).
+ * Trả về null nếu không thể chuyển an toàn (khi đó gửi nguyên văn).
+ */
+export function markdownToZaloWithMentions(md, mentions) {
+  if (!mentions.length) return { ...markdownToZalo(md), mentions: [] };
+  if (mentions.length > SENTINEL_MAX - SENTINEL_BASE + 1) return null;
+  if (/[-]/.test(md)) return null;
+
+  const sorted = mentions.map((m, i) => ({ ...m, i })).sort((a, b) => a.pos - b.pos);
+  for (let k = 1; k < sorted.length; k++) {
+    if (sorted[k].pos < sorted[k - 1].pos + sorted[k - 1].len) return null; // mentions chồng nhau
+  }
+
+  let src = "";
+  let last = 0;
+  for (const m of sorted) {
+    src += md.slice(last, m.pos) + String.fromCharCode(SENTINEL_BASE + m.i);
+    last = m.pos + m.len;
+  }
+  src += md.slice(last);
+
+  const { msg: converted, styles } = markdownToZalo(src);
+
+  // Khôi phục mentions, tính lại vị trí trong văn bản đầu ra.
+  let msg = "";
+  const out = [];
+  const seen = new Set();
+  const shifts = []; // [vị trí ký tự giữ chỗ trong `converted`, số ký tự thêm vào]
+  for (let j = 0; j < converted.length; j++) {
+    const code = converted.charCodeAt(j);
+    const idx = code - SENTINEL_BASE;
+    if (idx >= 0 && idx < mentions.length && !seen.has(idx)) {
+      seen.add(idx);
+      const m = mentions[idx];
+      out[idx] = { ...m, pos: msg.length };
+      msg += md.slice(m.pos, m.pos + m.len);
+      shifts.push([j, m.len - 1]);
+    } else {
+      msg += converted[j];
+    }
+  }
+  if (seen.size !== mentions.length) return null; // có mention bị mất khi chuyển
+
+  const mapPos = (p) => {
+    let d = 0;
+    for (const [at, extra] of shifts) if (at < p) d += extra;
+    return p + d;
+  };
+  const newStyles = styles.map((s) => {
+    const start = mapPos(s.start);
+    return { ...s, start, len: mapPos(s.start + s.len) - start };
+  });
+
+  return { msg, styles: newStyles, mentions: out };
+}

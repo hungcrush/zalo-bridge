@@ -1,7 +1,7 @@
 import { ThreadType } from "zca-js";
 import { imageSize } from "image-size";
 import { config, log, logErr, sleep } from "./config.js";
-import { looksLikeMarkdown, markdownToZalo } from "./markdown.js";
+import { looksLikeMarkdown, markdownToZalo, markdownToZaloWithMentions } from "./markdown.js";
 import { call } from "./pb.js";
 import { getApi } from "./zalo.js";
 
@@ -63,9 +63,22 @@ async function sendOne(item) {
     if (!threadId) throw new Error("Thiếu thread_id hoặc phone");
 
     const text = item.text || "";
-    // Có mentions thì gửi nguyên văn: chuyển markdown làm lệch pos/len của mentions
-    const message =
-      config.markdown && !item.mentions && looksLikeMarkdown(text) ? markdownToZalo(text) : { msg: text };
+    const mentions = item.mentions ? parseMentions(item.mentions, text) : null;
+    let message = { msg: text };
+    if (config.markdown && looksLikeMarkdown(text)) {
+      if (!mentions) {
+        message = markdownToZalo(text);
+      } else {
+        // Chuyển markdown và tính lại pos/len của mentions theo văn bản mới
+        const converted = markdownToZaloWithMentions(text, mentions);
+        if (converted) {
+          const { mentions: mapped, ...rest } = converted;
+          message = rest;
+          message.mentions = mapped;
+        }
+      }
+    }
+    if (mentions && !message.mentions) message.mentions = mentions;
 
     if (item.reply_to) {
       const q = await call((pb) => pb.collection("zalo_messages").getOne(item.reply_to));
@@ -81,8 +94,6 @@ async function sendOne(item) {
         ttl: r.ttl ?? 0,
       };
     }
-
-    if (item.mentions) message.mentions = parseMentions(item.mentions, message.msg);
 
     const files = Array.isArray(item.attachments) ? item.attachments : item.attachments ? [item.attachments] : [];
     if (files.length) {
